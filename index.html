@@ -24,8 +24,9 @@
             cursor: none;
             overflow-x: hidden;
             scroll-behavior: smooth;
-            /* Prevent scrolling while interacting with the beam */
-            touch-action: none; 
+            /* Allow vertical scrolling, but stop the "bounce" effect on mobile */
+            touch-action: pan-y; 
+            overscroll-behavior-y: none;
         }
 
         #bg-canvas {
@@ -41,6 +42,8 @@
                 linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 50px 50px;
             z-index: -1;
+            /* This ensures we can detect clicks on the background */
+            pointer-events: all;
         }
 
         #control-panel {
@@ -48,6 +51,7 @@
             background: rgba(0,0,0,0.85);
             border: 1px solid var(--plasma-cyan);
             padding: 10px; z-index: 9999;
+            pointer-events: all;
         }
         input[type=range] { accent-color: var(--plasma-cyan); cursor: none; }
 
@@ -55,16 +59,15 @@
             position: fixed; width: 160px; height: 100px;
             pointer-events: none; z-index: 100000;
             transform: translate(-50%, -50%);
-            transition: transform 0.2s ease;
         }
 
-        /* Mobile Adjustments */
+        /* Mobile Responsive Adjustments */
         @media (max-width: 768px) {
-            #ring-cusp-cursor { transform: translate(-50%, -50%) scale(0.75); }
-            #control-panel { top: 10px; left: 10px; transform: scale(0.85); transform-origin: top left; }
+            #ring-cusp-cursor { transform: translate(-50%, -50%) scale(0.7); }
+            #control-panel { transform: scale(0.8); transform-origin: top left; top: 10px; left: 10px; }
             .lab-card h1 { font-size: 1.8rem !important; }
             #diagnostic-hud { bottom: 100px; right: 10px; transform: scale(0.8); transform-origin: bottom right; }
-            #terminal-log { height: 60px; font-size: 0.55rem; }
+            #terminal-log { height: 70px; font-size: 0.55rem; }
             .container { padding: 80px 15px 100px; }
         }
 
@@ -116,7 +119,9 @@
         }
         #terminal-log p::before { content: "> "; color: #fff; }
 
-        .container { max-width: 950px; margin: 0 auto; padding: 120px 20px 120px; }
+        .container { max-width: 950px; margin: 0 auto; padding: 120px 20px 120px; position: relative; z-index: 10; pointer-events: none; }
+        .lab-card, .module-title, .btn-game, .site-link { pointer-events: all; }
+        
         .lab-card {
             background: rgba(10, 10, 15, 0.9);
             border: 1px solid #222; border-left: 4px solid var(--plasma-cyan);
@@ -250,7 +255,7 @@
             
             <p style="margin-top:25px;"><b>Software Stack:</b> CST Studio, OPERA3D, SIMION, COMSOL, RF Track, ANSYS, ASTRA, MAD-X, Geant4, IBISIMU.</p>
             <p><b>Outreach:</b> Designed 3D printed Faraday Cup integrated with Red Pitaya. Conducted superconductivity and magnetic levitation demos.</p>
-            <p><b>Languages:</b> English, Hindi, Gujarati (Native), Spanish (B2), Russian (A1)].</p>
+            <p><b>Languages:</b> English, Hindi, Gujarati (Native), Spanish (B2), Russian (A1).</p>
         </div>
     </div>
 
@@ -273,8 +278,9 @@
         let audioCtx, gainNode, filter, logInterval;
         let beamEnergy = 5.0;
         let isTouch = false;
+        let isFiring = false;
 
-        // Detection for touch devices to apply Y-offset
+        // Detect touch input
         window.addEventListener('touchstart', () => { isTouch = true; }, {once: true});
 
         // --- ION BACKGROUND ---
@@ -380,10 +386,11 @@
 
         // --- UNIFIED INPUT LOGIC ---
         const startBeam = () => {
+            isFiring = true;
             initAudio(); spark.style.opacity = 1; generateSpark();
             logInterval = setInterval(logData, 1800);
             setTimeout(() => {
-                beam.style.width = '1400px'; 
+                beam.style.width = '2400px'; 
                 hud.classList.add('active');
                 if (gainNode) gainNode.gain.setTargetAtTime(0.12, audioCtx.currentTime, 0.05);
                 drawDiagnostics();
@@ -391,13 +398,21 @@
         };
 
         const stopBeam = () => {
+            isFiring = false;
             beam.style.width = '0'; spark.style.opacity = 0; hud.classList.remove('active');
             clearInterval(logInterval);
             if (gainNode) gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
         };
 
+        // Pointer Events for Global Tracking
         window.addEventListener('pointerdown', (e) => {
-            if(e.target.tagName === 'INPUT' || e.target.tagName === 'A') return;
+            // ONLY start beam if clicking the background grid (or empty areas)
+            if (e.target.closest('.lab-card') || 
+                e.target.closest('#control-panel') || 
+                e.target.tagName === 'A' || 
+                e.target.tagName === 'INPUT') {
+                return; // Let native scroll happen
+            }
             startBeam();
         });
 
@@ -406,17 +421,23 @@
 
         window.addEventListener('pointermove', (e) => {
             mX = e.clientX; mY = e.clientY;
+            // Check for section color updates
             const hovered = document.elementFromPoint(mX, mY)?.closest('[data-color]');
             if (hovered) document.documentElement.style.setProperty('--current-beam-color', hovered.getAttribute('data-color'));
         });
 
         function animate() {
             bX += (mX - bX) * 0.15; 
-            // If touch, offset Y by -70px so the finger doesn't block the ion source
-            const targetY = isTouch ? mY - 70 : mY;
+            
+            // On mobile, if firing, offset the graphic -80px UP so the finger doesn't block it.
+            // If just moving/scrolling, keep it centered.
+            let targetY = mY;
+            if (isTouch && isFiring) targetY -= 80;
+            
             bY += (targetY - bY) * 0.15;
             
-            cursor.style.left = bX + 'px'; cursor.style.top = bY + 'px';
+            cursor.style.left = bX + 'px'; 
+            cursor.style.top = bY + 'px';
             requestAnimationFrame(animate);
         }
         animate();
