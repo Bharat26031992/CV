@@ -1,18 +1,33 @@
-// [ ACOUSTIC_RESONANCE_SYSTEM_V2.2 ]
+// [ ACOUSTIC_RESONANCE_SYSTEM_V2.3 - RANDOMIZED ]
 const playlist = [
-    { title: "Track1", file: "track1.mp3" },
-    { title: "Track2", file: "track2.mp3" },
-    { title: "Track3", file: "track3.mp3" },
-    { title: "Track4", file: "track4.mp3" }
+    { title: "Bhairav", file: "track1.mp3" },
+    { title: "Kalawati", file: "track2.mp3" },
+    { title: "Malkauns", file: "track3.mp3" },
+    { title: "Yaman", file: "track4.mp3" },
+    { title: "Bad Bitch", file: "track5.mp3" },
+    { title: "Перепутала", file: "track6.mp3" },
+    { title: "Acenda o farol", file: "track7.mp3" },
+    { title: "O Descobridor Dos Sete Mares", file: "track8.mp3" },
+    { title: "Amores Lejanos", file: "track9.mp3" },
+    { title: "Mi Manera de querer", file: "track10.mp3" },
+    { title: "Aja mahi", file: "track11.mp3" },
+    { title: "خونه ی ما", file: "track12.mp3" },
+    { title: "Vienna Calling", file: "track13.mp3" },
+    { title: "Ciudad de la furia", file: "track14.mp3" },
+    { title: "ВИРТУАЛЬНАЯ ЛЮБОВЬ", file: "track15.mp3" }
+    
 ];
 
-let currentTrackIndex = 0;
+// 1. START WITH RANDOM TRACK
+let currentTrackIndex = Math.floor(Math.random() * playlist.length);
+let isShuffle = false; // Shuffle state
+
 const audio = new Audio();
 audio.volume = 0.5;
 
 const initJukebox = () => {
     const jukeboxHTML = `
-    <div id="jukebox-card" style="position: fixed; top: 100px; left: 20px; width: 120px; z-index: 999999; background: rgba(5,5,10,0.98); border: 1px solid var(--warning-orange); border-left: 3px solid var(--warning-orange); padding: 12px; pointer-events: all; cursor: default; box-shadow: 0 0 20px rgba(0,0,0,0.8); user-select: none;">
+    <div id="jukebox-card" style="position: fixed; top: 100px; left: 20px; width: 140px; z-index: 999999; background: rgba(5,5,10,0.98); border: 1px solid var(--warning-orange); border-left: 3px solid var(--warning-orange); padding: 12px; pointer-events: all; cursor: default; box-shadow: 0 0 20px rgba(0,0,0,0.8); user-select: none;">
         
         <div id="jukebox-header" style="color:var(--warning-orange); font-size:0.55rem; font-weight:bold; margin-bottom:10px; display:flex; justify-content:space-between; cursor: move; border-bottom: 1px solid #333; padding-bottom: 5px;">
             <span>[ MY PLAYLIST ]</span>
@@ -25,10 +40,11 @@ const initJukebox = () => {
             <div id="progress-bar" style="width: 0%; height: 100%; background: var(--warning-orange); box-shadow: 0 0 8px var(--warning-orange); border-radius: 2px;"></div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
             <button id="prev-btn" class="btn-mini">⟪</button>
-            <button id="play-pause" class="btn-mini" style="color: var(--plasma-cyan); border-color: var(--plasma-cyan); font-size: 1rem; min-width: 45px;">▶</button>
+            <button id="play-pause" class="btn-mini" style="color: var(--plasma-cyan); border-color: var(--plasma-cyan); font-size: 1rem; flex-grow: 1;">▶</button>
             <button id="next-btn" class="btn-mini">⟫</button>
+            <button id="shuffle-btn" class="btn-mini" title="Toggle Shuffle">🔀</button>
         </div>
         
         <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="0.5" 
@@ -42,11 +58,15 @@ const initJukebox = () => {
             color: var(--warning-orange);
             cursor: pointer;
             font-family: 'Fira Code', monospace;
-            padding: 4px 10px;
+            padding: 4px 6px;
             font-size: 0.75rem;
             transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .btn-mini:hover { background: rgba(255, 174, 0, 0.2); box-shadow: 0 0 8px var(--warning-orange); }
+        .btn-mini.active { color: var(--plasma-cyan); border-color: var(--plasma-cyan); box-shadow: 0 0 8px var(--plasma-cyan); }
         #jukebox-card:active { cursor: grabbing; }
     </style>
     `;
@@ -59,34 +79,50 @@ const initJukebox = () => {
     const playBtn = document.getElementById('play-pause');
     const nextBtn = document.getElementById('next-btn');
     const prevBtn = document.getElementById('prev-btn');
+    const shuffleBtn = document.getElementById('shuffle-btn');
     const volSlider = document.getElementById('vol-slider');
 
-    // --- BEAM INTERFERENCE PROTECTION ---
-    // This stops the "pointerdown" event from reaching the background simulation
     const stopBeam = (e) => e.stopPropagation();
     card.addEventListener('pointerdown', stopBeam);
     card.addEventListener('mousedown', stopBeam);
     card.addEventListener('click', stopBeam);
 
-    // --- DRAGGABLE LOGIC ---
     let isDragging = false, offset = { x: 0, y: 0 };
-
     header.addEventListener('mousedown', (e) => {
         isDragging = true;
         offset = { x: card.offsetLeft - e.clientX, y: card.offsetTop - e.clientY };
     });
-
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         card.style.left = (e.clientX + offset.x) + 'px';
         card.style.top = (e.clientY + offset.y) + 'px';
         card.style.bottom = 'auto'; 
     });
-
     document.addEventListener('mouseup', () => isDragging = false);
 
-    // --- BUTTON CONTROLS ---
-    playBtn.addEventListener('click', (e) => {
+    // --- LOGIC FUNCTIONS ---
+
+    const setNextTrack = () => {
+        if (isShuffle) {
+            // Pick a random track that isn't the current one (if playlist > 1)
+            let newIndex;
+            do {
+                newIndex = Math.floor(Math.random() * playlist.length);
+            } while (newIndex === currentTrackIndex && playlist.length > 1);
+            currentTrackIndex = newIndex;
+        } else {
+            currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+        }
+    };
+
+    // --- CONTROLS ---
+
+    shuffleBtn.addEventListener('click', () => {
+        isShuffle = !isShuffle;
+        shuffleBtn.classList.toggle('active', isShuffle);
+    });
+
+    playBtn.addEventListener('click', () => {
         if (audio.paused) {
             audio.play().catch(() => console.log("User interaction required"));
             playBtn.innerText = "‖";
@@ -97,27 +133,31 @@ const initJukebox = () => {
     });
 
     nextBtn.addEventListener('click', () => {
-        currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+        setNextTrack();
         loadTrack(currentTrackIndex);
         audio.play();
         playBtn.innerText = "‖";
     });
 
     prevBtn.addEventListener('click', () => {
-        currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+        // Prev button usually goes back linearly, but we can make it random if shuffle is on 
+        // Logic: Linear back if not shuffle, otherwise random
+        if (isShuffle) {
+            setNextTrack(); 
+        } else {
+            currentTrackIndex = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+        }
         loadTrack(currentTrackIndex);
         audio.play();
         playBtn.innerText = "‖";
     });
 
-    // --- SCRUBBING (FORWARDING) ---
     progressContainer.addEventListener('click', (e) => {
         const rect = progressContainer.getBoundingClientRect();
         const pos = (e.clientX - rect.left) / rect.width;
         if (audio.duration) audio.currentTime = pos * audio.duration;
     });
 
-    // --- AUDIO UPDATES ---
     volSlider.oninput = (e) => { audio.volume = e.target.value; };
     
     audio.ontimeupdate = () => {
@@ -126,7 +166,7 @@ const initJukebox = () => {
     };
     
     audio.onended = () => {
-        currentTrackIndex = (currentTrackIndex + 1) % playlist.length;
+        setNextTrack();
         loadTrack(currentTrackIndex);
         audio.play();
     };
@@ -137,10 +177,10 @@ const initJukebox = () => {
         document.getElementById('track-info').innerText = `TRACK: ${track.title}`;
     }
 
+    // Initialize with the random index chosen at top
     loadTrack(currentTrackIndex);
 };
 
-// Start initialization
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initJukebox);
 } else {
