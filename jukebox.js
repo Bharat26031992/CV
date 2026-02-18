@@ -14,7 +14,14 @@ const playlist = [
     { title: "خونه ی ما", file: "track12.mp3" },
     { title: "Vienna Calling", file: "track13.mp3" },
     { title: "Ciudad de la furia", file: "track14.mp3" },
-    { title: "ВИРТУАЛЬНАЯ ЛЮБОВЬ", file: "track15.mp3" }
+    { title: "ВИРТУАЛЬНАЯ ЛЮБОВЬ", file: "track15.mp3" },
+    { title: "Oye mi amor", file: "track16.mp3" },
+    { title: "Come", file: "track17.mp3" },
+    { title: "Mas que nada", file: "track18.mp3" },
+    { title: "Ring my bell", file: "track19.mp3" },
+    { title: "Soledad y el mar", file: "track20.mp3" },
+    { title: "Take 5", file: "track21.mp3" },
+    { title: "Babaji ki Booti", file: "track22.mp3" },
     
 ];
 
@@ -23,7 +30,7 @@ let currentTrackIndex = Math.floor(Math.random() * playlist.length);
 let isShuffle = false; // Shuffle state
 
 const audio = new Audio();
-audio.volume = 0.5;
+audio.volume = 0.2;
 
 const initJukebox = () => {
     const jukeboxHTML = `
@@ -34,7 +41,9 @@ const initJukebox = () => {
             <span>☊</span>
         </div>
 
-        <div id="track-info" style="font-size: 0.7rem; margin-bottom: 10px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'Fira Code', monospace;">TRACK: IDLE</div>
+        <div id="track-info" style="font-size: 0.7rem; margin-bottom: 10px; color: #fff; white-space: nowrap; overflow: hidden; font-family: 'Fira Code', monospace; position: relative; width: 100%;">
+            <span id="track-text">TRACK: IDLE</span>
+        </div>
         
         <div id="progress-container" style="width: 100%; height: 6px; background: #111; margin-bottom: 12px; cursor: pointer; position: relative; border-radius: 2px;">
             <div id="progress-bar" style="width: 0%; height: 100%; background: var(--warning-orange); box-shadow: 0 0 8px var(--warning-orange); border-radius: 2px;"></div>
@@ -68,6 +77,18 @@ const initJukebox = () => {
         .btn-mini:hover { background: rgba(255, 174, 0, 0.2); box-shadow: 0 0 8px var(--warning-orange); }
         .btn-mini.active { color: var(--plasma-cyan); border-color: var(--plasma-cyan); box-shadow: 0 0 8px var(--plasma-cyan); }
         #jukebox-card:active { cursor: grabbing; }
+
+        /* Marquee Animation */
+        #track-text {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 10s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
     </style>
     `;
 
@@ -104,7 +125,6 @@ const initJukebox = () => {
 
     const setNextTrack = () => {
         if (isShuffle) {
-            // Pick a random track that isn't the current one (if playlist > 1)
             let newIndex;
             do {
                 newIndex = Math.floor(Math.random() * playlist.length);
@@ -123,6 +143,7 @@ const initJukebox = () => {
     });
 
     playBtn.addEventListener('click', () => {
+
         if (audio.paused) {
             audio.play().catch(() => console.log("User interaction required"));
             playBtn.innerText = "‖";
@@ -140,8 +161,6 @@ const initJukebox = () => {
     });
 
     prevBtn.addEventListener('click', () => {
-        // Prev button usually goes back linearly, but we can make it random if shuffle is on 
-        // Logic: Linear back if not shuffle, otherwise random
         if (isShuffle) {
             setNextTrack(); 
         } else {
@@ -174,7 +193,8 @@ const initJukebox = () => {
     function loadTrack(index) {
         const track = playlist[index];
         audio.src = track.file;
-        document.getElementById('track-info').innerText = `TRACK: ${track.title}`;
+        // Updating innerText of the span inside track-info
+        document.getElementById('track-text').innerText = `TRACK: ${track.title}`;
     }
 
     // Initialize with the random index chosen at top
