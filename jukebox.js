@@ -89,6 +89,17 @@ const initJukebox = () => {
             0% { transform: translate(0, 0); }
             100% { transform: translate(-100%, 0); }
         }
+
+        /* Mobile Adjustments for Jukebox */
+        @media (max-width: 850px) {
+            #jukebox-card {
+                top: 20px !important;
+                right: 20px !important;
+                left: auto !important;
+                width: 120px !important;
+                padding: 10px !important;
+            }
+        }
     </style>
     `;
 
@@ -108,18 +119,41 @@ const initJukebox = () => {
     card.addEventListener('mousedown', stopBeam);
     card.addEventListener('click', stopBeam);
 
+    // --- DRAGGING LOGIC (Mouse + Touch) ---
     let isDragging = false, offset = { x: 0, y: 0 };
-    header.addEventListener('mousedown', (e) => {
+    
+    function startDrag(clientX, clientY) {
         isDragging = true;
-        offset = { x: card.offsetLeft - e.clientX, y: card.offsetTop - e.clientY };
-    });
-    document.addEventListener('mousemove', (e) => {
+        offset = { x: card.offsetLeft - clientX, y: card.offsetTop - clientY };
+    }
+    
+    function doDrag(clientX, clientY) {
         if (!isDragging) return;
-        card.style.left = (e.clientX + offset.x) + 'px';
-        card.style.top = (e.clientY + offset.y) + 'px';
+        card.style.left = (clientX + offset.x) + 'px';
+        card.style.top = (clientY + offset.y) + 'px';
         card.style.bottom = 'auto'; 
-    });
-    document.addEventListener('mouseup', () => isDragging = false);
+        card.style.right = 'auto'; 
+    }
+
+    function stopDrag() { isDragging = false; }
+
+    // Desktop
+    header.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+    document.addEventListener('mousemove', (e) => doDrag(e.clientX, e.clientY));
+    document.addEventListener('mouseup', stopDrag);
+
+    // Mobile/Touch
+    header.addEventListener('touchstart', (e) => {
+        startDrag(e.touches[0].clientX, e.touches[0].clientY);
+        e.preventDefault(); // Stop scroll when dragging header
+    }, {passive: false});
+    document.addEventListener('touchmove', (e) => {
+        if(isDragging) {
+            doDrag(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault(); // Stop scrolling while moving box
+        }
+    }, {passive: false});
+    document.addEventListener('touchend', stopDrag);
 
     // --- LOGIC FUNCTIONS ---
 

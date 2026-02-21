@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const warpStrength = 55;      // Intensity of the line bending
   const gridOpacity = 0.3;     // Visibility of the grid lines
 
-  let mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+  let mouse = { x: window.innerWidth/2, y: window.innerHeight/2, targetX: window.innerWidth/2, targetY: window.innerHeight/2 };
   let stars = [], pulses = [], dataBits = [];
 
   // ─── 1. SELF-INJECT BACKGROUND STYLES ───
@@ -148,32 +148,50 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(animate);
   }
 
-  // ─── 4. PARALLAX INTERACTION ───
+  // Helper to apply the transforms
+  function applyTransforms(xVal, yVal) {
+    const layers = [
+        { el: canvas, depth: 0.1 },
+        { el: document.getElementById('ui-grid'), depth: 0.4 },
+        { el: document.querySelector('.beam-profile-box'), depth: 1.2 },
+        { el: document.querySelector('[ION_SOURCE_CONTROL]'), depth: 1.5 }
+      ];
+  
+      layers.forEach(({ el, depth }) => {
+        if (!el) return;
+        const rotX = yVal * maxTilt * depth;
+        const rotY = -xVal * maxTilt * depth;
+        const moveX = xVal * 25 * depth;
+        const moveY = yVal * 25 * depth;
+  
+        el.style.transition = transition;
+        el.style.transform = `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) translate3d(${moveX}px, ${moveY}px, 0)`;
+      });
+  }
+
+  // ─── 4. PARALLAX INTERACTION (DESKTOP) ───
   window.addEventListener('mousemove', (e) => {
     mouse.targetX = e.clientX;
     mouse.targetY = e.clientY;
 
     const xVal = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
     const yVal = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+    applyTransforms(xVal, yVal);
+  });
 
-    // Target elements based on your provided screenshots
-    const layers = [
-      { el: canvas, depth: 0.1 },
-      { el: document.getElementById('ui-grid'), depth: 0.4 },
-      { el: document.querySelector('.beam-profile-box'), depth: 1.2 },
-      { el: document.querySelector('[ION_SOURCE_CONTROL]'), depth: 1.5 }
-    ];
+  // ─── 5. PARALLAX INTERACTION (MOBILE GYROSCOPE) ───
+  window.addEventListener('deviceorientation', (e) => {
+      if (!e.gamma || !e.beta) return;
+      
+      // Normalize tilt values
+      let xVal = e.gamma / 45; 
+      let yVal = (e.beta - 45) / 45; // Assume user holds phone at 45 degree angle
+      
+      // Clamp values so elements don't flip completely backwards
+      xVal = Math.max(-1, Math.min(1, xVal));
+      yVal = Math.max(-1, Math.min(1, yVal));
 
-    layers.forEach(({ el, depth }) => {
-      if (!el) return;
-      const rotX = yVal * maxTilt * depth;
-      const rotY = -xVal * maxTilt * depth;
-      const moveX = xVal * 25 * depth;
-      const moveY = yVal * 25 * depth;
-
-      el.style.transition = transition;
-      el.style.transform = `perspective(1200px) rotateX(${rotX}deg) rotateY(${rotY}deg) translate3d(${moveX}px, ${moveY}px, 0)`;
-    });
+      applyTransforms(xVal, yVal);
   });
 
   window.addEventListener('resize', initScene);

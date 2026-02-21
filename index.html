@@ -170,9 +170,16 @@
             transition: all 0.3s ease, transform 0.1s ease-out;
             transform-style: preserve-3d;
         }
-        .lab-card:hover {
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.25);
-            transform: translateY(-3px);
+        
+        @media (hover: hover) and (pointer: fine) {
+            .lab-card:hover { box-shadow: 0 0 30px rgba(0, 255, 255, 0.25); transform: translateY(-3px); }
+            .lab-card:hover h1 { color: #ffdd00; text-shadow: 0 0 12px #ffae00, 0 0 24px #00ffff; }
+            .lab-card:hover h2.module-title { color: #ffae00; text-shadow: 0 0 10px #ffae00, 0 0 20px rgba(255,174,0,0.6); }
+            .lab-card:hover .sub-role { color: #00ffff; text-shadow: 0 0 8px #00ffff, 0 0 16px rgba(0,255,255,0.5); }
+            .lab-card:hover .date-tag { color: #bc13fe; text-shadow: 0 0 6px #bc13fe; }
+            .lab-card:hover p, .lab-card:hover li { color: #e0ffff; text-shadow: 0 0 6px rgba(0,255,255,0.4); }
+            .lab-card:hover .pub-box { border-left-color: #bc13fe; background: rgba(188,19,254,0.08); box-shadow: 0 0 12px rgba(188,19,254,0.4); color: #e0ccff; }
+            .lab-card:hover .btn-game { border-color: #ffae00; color: #ffdd00; background: rgba(255,174,0,0.15); box-shadow: 0 0 15px #ffae00, 0 0 25px rgba(0,255,255,0.3); transform: scale(1.05); }
         }
 
         /* Visual Pulse Animation */
@@ -181,20 +188,7 @@
             50% { border-left-color: var(--phosphor-green); box-shadow: 0 0 25px var(--phosphor-green); }
             100% { border-left-color: var(--plasma-cyan); box-shadow: 0 0 0px var(--phosphor-green); }
         }
-        .pulse-active {
-            animation: border-pulse 0.4s ease-out;
-        }
-
-        .lab-card:hover h1 { color: #ffdd00; text-shadow: 0 0 12px #ffae00, 0 0 24px #00ffff; }
-        .lab-card:hover h2.module-title { color: #ffae00; text-shadow: 0 0 10px #ffae00, 0 0 20px rgba(255,174,0,0.6); }
-        .lab-card:hover .sub-role { color: #00ffff; text-shadow: 0 0 8px #00ffff, 0 0 16px rgba(0,255,255,0.5); }
-        .lab-card:hover .date-tag { color: #bc13fe; text-shadow: 0 0 6px #bc13fe; }
-        .lab-card:hover p, .lab-card:hover li { color: #e0ffff; text-shadow: 0 0 6px rgba(0,255,255,0.4); }
-        .lab-card:hover .pub-box { border-left-color: #bc13fe; background: rgba(188,19,254,0.08); box-shadow: 0 0 12px rgba(188,19,254,0.4); color: #e0ccff; }
-        .lab-card:hover .btn-game {
-            border-color: #ffae00; color: #ffdd00; background: rgba(255,174,0,0.15);
-            box-shadow: 0 0 15px #ffae00, 0 0 25px rgba(0,255,255,0.3); transform: scale(1.05);
-        }
+        .pulse-active { animation: border-pulse 0.4s ease-out; }
 
         h2.module-title { color: var(--warning-orange); text-transform: uppercase; letter-spacing: 3px; border-bottom: 1px solid #333; padding-bottom: 8px; font-size: 1rem; margin-top: 40px;}
         .sub-role { color: var(--plasma-cyan); font-weight: bold; font-size: 1.1rem; display: block; margin-top: 20px;}
@@ -207,7 +201,6 @@
             display: inline-block; padding: 12px 25px; border: 1px solid var(--warning-orange);
             color: var(--warning-orange); text-decoration: none; font-weight: bold; transition: all 0.3s ease; margin-top: 15px; font-size: 0.85rem;
         }
-        .btn-game:hover { background: var(--warning-orange); color: #000; box-shadow: 0 0 15px var(--warning-orange); }
 
         .hobby-chamber { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; padding: 15px; background: rgba(0, 255, 255, 0.02); border: 1px dashed #333; border-radius: 8px; }
         .hobby-atom { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; font-size: 0.75rem; cursor: crosshair; transition: 0.3s; background: #000; user-select: none; }
@@ -218,6 +211,23 @@
             0% { opacity: 1; }
             50% { opacity: 0.8; }
             100% { opacity: 1; }
+        }
+
+        /* --- MOBILE & TABLET RESPONSIVE CSS --- */
+        @media (max-width: 850px) {
+            .container { padding: 180px 15px 100px; }
+            .lab-card { padding: 20px; margin-bottom: 30px; }
+            h1 { font-size: 2rem !important; }
+            .sub-role { font-size: 1rem; }
+            #control-panel { top: auto !important; bottom: 20px !important; left: 10px !important; z-index: 100000; }
+            #diagnostic-hud { display: none !important; } /* Hide complex canvas HUD on tiny screens to save space */
+            .btn-game { display: block; text-align: center; margin-bottom: 10px; }
+            #initialize-button { font-size: 0.9rem; padding: 15px 25px; }
+        }
+
+        /* Disable Custom Particle Cursor on Touch Devices */
+        @media (hover: none) and (pointer: coarse) {
+            #ring-cusp-cursor { display: none !important; }
         }
     </style>
 </head>
@@ -389,16 +399,16 @@
         let panelOffset = { x: 0, y: 0 };
 
         window.addEventListener('load', () => {
-            panel.style.top = '20px';
-            panel.style.left = '20px';
+            // Keep it dynamic so media queries win if needed
             const jukebox = document.getElementById('jukebox-card');
-            if(jukebox) {
+            if(jukebox && window.innerWidth > 850) {
                 jukebox.style.top = '20px';
                 jukebox.style.right = '20px';
                 jukebox.style.left = 'auto';
             }
         });
 
+        // Mouse Dragging
         panel.addEventListener('mousedown', (e) => {
             isDraggingPanel = true;
             panelOffset.x = e.clientX - panel.offsetLeft;
@@ -406,14 +416,33 @@
             panel.style.transition = 'none';
             e.stopPropagation();
         });
-
         document.addEventListener('mousemove', (e) => {
             if (!isDraggingPanel) return;
             panel.style.left = (e.clientX - panelOffset.x) + 'px';
             panel.style.top = (e.clientY - panelOffset.y) + 'px';
         });
-
         document.addEventListener('mouseup', () => {
+            if (isDraggingPanel) {
+                isDraggingPanel = false;
+                panel.style.transition = 'transform 0.1s ease-out';
+            }
+        });
+
+        // Touch Dragging for Mobile
+        panel.addEventListener('touchstart', (e) => {
+            isDraggingPanel = true;
+            panelOffset.x = e.touches[0].clientX - panel.offsetLeft;
+            panelOffset.y = e.touches[0].clientY - panel.offsetTop;
+            panel.style.transition = 'none';
+            e.stopPropagation();
+        }, {passive: false});
+        document.addEventListener('touchmove', (e) => {
+            if (!isDraggingPanel) return;
+            panel.style.left = (e.touches[0].clientX - panelOffset.x) + 'px';
+            panel.style.top = (e.touches[0].clientY - panelOffset.y) + 'px';
+            e.preventDefault(); // Prevent scrolling while dragging
+        }, {passive: false});
+        document.addEventListener('touchend', () => {
             if (isDraggingPanel) {
                 isDraggingPanel = false;
                 panel.style.transition = 'transform 0.1s ease-out';
@@ -448,8 +477,6 @@
                 setTimeout(() => element.classList.remove('pulse-active'), 400);
             }
         }
-
-
 
         function startBeamHum() {
             if (beamHumOsc) return;
@@ -626,11 +653,15 @@
             filament.style.boxShadow = neutCurrent > 0 ? `0 0 ${neutCurrent * 8}px var(--warning-orange)` : "none";
         };
 
+        // Added touch support to the hobby atoms
         document.querySelectorAll('.hobby-atom').forEach(atom => {
-            atom.addEventListener('mouseenter', () => { 
+            const handleHover = () => {
+                document.querySelectorAll('.hobby-atom').forEach(a => a.classList.remove('ionized'));
                 atom.classList.add('ionized'); playTick();
                 document.getElementById('hobby-readout').innerText = `>  ${atom.getAttribute('data-info')}`; 
-            });
+            };
+            atom.addEventListener('mouseenter', handleHover);
+            atom.addEventListener('touchstart', handleHover, {passive: true});
             atom.addEventListener('mouseleave', () => { atom.classList.remove('ionized'); document.getElementById('hobby-readout').innerText = "// WAITING_FOR_BEAM_PROBE..."; });
         });
 
