@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bharat Singh Rawat, Ph.D.</title>
+    <script src="parallax.js"></script>
+    <script src="jukebox.js" defer></script>
+
     <style>
         :root {
             --plasma-cyan: #00ffff;
@@ -26,25 +29,113 @@
             touch-action: pan-y;
             cursor: default;
         }
-        #bg-canvas { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
+
+        /* --- CRT & VIDEO OVERLAY STYLES --- */
+        #video-intro-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            background: var(--vacuum-black);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), visibility 1.2s;
+        }
+
+        #intro-video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            filter: saturate(1.2) contrast(1.1);
+        }
+
+        #crt-filter {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            z-index: 2;
+        }
+
+        #enter-system-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.8) 90%);
+            z-index: 3;
+            backdrop-filter: blur(2px);
+        }
+
+        #initialize-button {
+            background: transparent;
+            color: var(--phosphor-green);
+            border: 2px solid var(--phosphor-green);
+            padding: 20px 40px;
+            font-family: 'Fira Code', monospace;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0,255,65,0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        #initialize-button:hover { 
+            background: var(--phosphor-green); 
+            color: #000; 
+            box-shadow: 0 0 50px var(--phosphor-green);
+            animation: flicker 0.15s infinite; 
+        }
+
+        .preloader-hidden { 
+            opacity: 0; 
+            visibility: hidden; 
+            pointer-events: none; 
+            filter: brightness(2) blur(20px);
+        }
+
+        /* --- UI COMPONENT PLACEMENT --- */
+        #control-panel {
+            position: fixed; 
+            top: 20px;     
+            left: 20px;
+            background: rgba(0,0,0,0.92);
+            border: 1px solid var(--plasma-cyan);
+            padding: 15px; z-index: 9999;
+            pointer-events: all; border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0,255,255,0.2);
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.1s ease-out;
+        }
+        
+        #jukebox-card {
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            left: auto !important;
+            z-index: 9999;
+        }
+
+        #bg-canvas { position: fixed; inset: 0; z-index: -2; pointer-events: none; background-color: var(--vacuum-black);}
         #ui-grid {
             position: fixed; inset: 0;
             background-image:
                 linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 50px 50px;
-            z-index: -1; pointer-events: all; cursor: none;
+            z-index: -1; pointer-events: none;
         }
-        #control-panel {
-            position: fixed; top: 20px; left: 20px;
-            background: rgba(0,0,0,0.92);
-            border: 1px solid var(--plasma-cyan);
-            padding: 15px; z-index: 9999;
-            pointer-events: all; border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0,255,255,0.2);
-        }
+        #control-panel:active { cursor: grabbing; }
         input[type=range] { accent-color: var(--plasma-cyan); width: 140px; cursor: pointer; display: block; margin: 5px 0 10px; }
-      
+        
         #ring-cusp-cursor {
             position: fixed; width: 400px; height: 200px;
             pointer-events: none; z-index: 100000;
@@ -76,26 +167,28 @@
         .lab-card {
             background: rgba(10, 10, 15, 0.94); border: 1px solid #222; border-left: 4px solid var(--plasma-cyan);
             padding: 30px; margin-bottom: 40px; pointer-events: all;
-            transition: all 0.3s ease;
+            transition: all 0.3s ease, transform 0.1s ease-out;
+            transform-style: preserve-3d;
         }
-        /* Varied Hover Glow */
-        .lab-card:hover {
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.25);
-            transform: translateY(-3px);
+        
+        @media (hover: hover) and (pointer: fine) {
+            .lab-card:hover { box-shadow: 0 0 30px rgba(0, 255, 255, 0.25); transform: translateY(-3px); }
+            .lab-card:hover h1 { color: #ffdd00; text-shadow: 0 0 12px #ffae00, 0 0 24px #00ffff; }
+            .lab-card:hover h2.module-title { color: #ffae00; text-shadow: 0 0 10px #ffae00, 0 0 20px rgba(255,174,0,0.6); }
+            .lab-card:hover .sub-role { color: #00ffff; text-shadow: 0 0 8px #00ffff, 0 0 16px rgba(0,255,255,0.5); }
+            .lab-card:hover .date-tag { color: #bc13fe; text-shadow: 0 0 6px #bc13fe; }
+            .lab-card:hover p, .lab-card:hover li { color: #e0ffff; text-shadow: 0 0 6px rgba(0,255,255,0.4); }
+            .lab-card:hover .pub-box { border-left-color: #bc13fe; background: rgba(188,19,254,0.08); box-shadow: 0 0 12px rgba(188,19,254,0.4); color: #e0ccff; }
+            .lab-card:hover .btn-game { border-color: #ffae00; color: #ffdd00; background: rgba(255,174,0,0.15); box-shadow: 0 0 15px #ffae00, 0 0 25px rgba(0,255,255,0.3); transform: scale(1.05); }
         }
-        .lab-card:hover h1 { color: #ffdd00; text-shadow: 0 0 12px #ffae00, 0 0 24px #00ffff; }
-        .lab-card:hover h2.module-title { color: #ffae00; text-shadow: 0 0 10px #ffae00, 0 0 20px rgba(255,174,0,0.6); }
-        .lab-card:hover .sub-role { color: #00ffff; text-shadow: 0 0 8px #00ffff, 0 0 16px rgba(0,255,255,0.5); }
-        .lab-card:hover .date-tag { color: #bc13fe; text-shadow: 0 0 6px #bc13fe; }
-        .lab-card:hover p, .lab-card:hover li { color: #e0ffff; text-shadow: 0 0 6px rgba(0,255,255,0.4); }
-        .lab-card:hover .pub-box { border-left-color: #bc13fe; background: rgba(188,19,254,0.08); box-shadow: 0 0 12px rgba(188,19,254,0.4); color: #e0ccff; }
-        .lab-card:hover .btn-game {
-            border-color: #ffae00;
-            color: #ffdd00;
-            background: rgba(255,174,0,0.15);
-            box-shadow: 0 0 15px #ffae00, 0 0 25px rgba(0,255,255,0.3);
-            transform: scale(1.05);
+
+        /* Visual Pulse Animation */
+        @keyframes border-pulse {
+            0% { border-left-color: var(--plasma-cyan); box-shadow: 0 0 0px var(--phosphor-green); }
+            50% { border-left-color: var(--phosphor-green); box-shadow: 0 0 25px var(--phosphor-green); }
+            100% { border-left-color: var(--plasma-cyan); box-shadow: 0 0 0px var(--phosphor-green); }
         }
+        .pulse-active { animation: border-pulse 0.4s ease-out; }
 
         h2.module-title { color: var(--warning-orange); text-transform: uppercase; letter-spacing: 3px; border-bottom: 1px solid #333; padding-bottom: 8px; font-size: 1rem; margin-top: 40px;}
         .sub-role { color: var(--plasma-cyan); font-weight: bold; font-size: 1.1rem; display: block; margin-top: 20px;}
@@ -103,25 +196,58 @@
         ul { list-style: none; padding: 0; }
         li::before { content: ">> "; color: var(--current-beam-color); }
         li { margin-bottom: 10px; font-size: 0.95rem; line-height: 1.6; }
-        .pub-box { background: rgba(255,255,255,0.03); padding: 10px; border-left: 2px solid var(--extraction-purple); margin-bottom: 8px; font-size: 0.85rem; }
+        .pub-box { background: rgba(255,255,255,0.03); padding: 10px; border-left: 2px solid var(--extraction-purple); margin-bottom: 8px; font-size: 0.85rem; transition: 0.3s; }
         .btn-game {
             display: inline-block; padding: 12px 25px; border: 1px solid var(--warning-orange);
             color: var(--warning-orange); text-decoration: none; font-weight: bold; transition: all 0.3s ease; margin-top: 15px; font-size: 0.85rem;
         }
-        .btn-game:hover { background: var(--warning-orange); color: #000; box-shadow: 0 0 15px var(--warning-orange); }
 
-        /* HOBBY CSS */
         .hobby-chamber { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; padding: 15px; background: rgba(0, 255, 255, 0.02); border: 1px dashed #333; border-radius: 8px; }
         .hobby-atom { padding: 6px 14px; border: 1px solid #444; border-radius: 20px; font-size: 0.75rem; cursor: crosshair; transition: 0.3s; background: #000; user-select: none; }
         .hobby-atom.ionized { border-color: var(--plasma-cyan); color: #fff; box-shadow: 0 0 15px var(--plasma-cyan); transform: scale(1.1); background: rgba(0, 255, 255, 0.1); }
         #hobby-readout { width: 100%; margin-top: 12px; font-size: 0.7rem; color: var(--phosphor-green); min-height: 1.2rem; font-family: 'Fira Code', monospace; }
+
+        @keyframes flicker {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        /* --- MOBILE & TABLET RESPONSIVE CSS --- */
+        @media (max-width: 850px) {
+            .container { padding: 180px 15px 100px; }
+            .lab-card { padding: 20px; margin-bottom: 30px; }
+            h1 { font-size: 2rem !important; }
+            .sub-role { font-size: 1rem; }
+            #control-panel { top: auto !important; bottom: 20px !important; left: 10px !important; z-index: 100000; }
+            #diagnostic-hud { display: none !important; } /* Hide complex canvas HUD on tiny screens to save space */
+            .btn-game { display: block; text-align: center; margin-bottom: 10px; }
+            #initialize-button { font-size: 0.9rem; padding: 15px 25px; }
+        }
+
+        /* Disable Custom Particle Cursor on Touch Devices */
+        @media (hover: none) and (pointer: coarse) {
+            #ring-cusp-cursor { display: none !important; }
+        }
     </style>
 </head>
 <body>
+    <div id="video-intro-container">
+        <video id="intro-video" playsinline autoplay muted loop>
+            <source src="IonSource.mp4" type="video/mp4">
+        </video>
+        <div id="crt-filter"></div>
+        <div id="enter-system-overlay">
+            <button id="initialize-button">[ INITIALIZE_SYSTEM ]</button>
+            <p style="color: var(--phosphor-green); font-size: 0.6rem; margin-top: 20px; letter-spacing: 1px; opacity: 0.3;"></p>
+        </div>
+    </div>
+
     <canvas id="bg-canvas"></canvas>
     <div id="ui-grid"></div>
+    
     <div id="control-panel">
-        <div style="color:var(--plasma-cyan); font-size:0.6rem; font-weight:bold; margin-bottom:10px;">[ ION_SOURCE_CONTROL ]</div>
+        <div style="color:var(--plasma-cyan); font-size:0.6rem; font-weight:bold; margin-bottom:10px; cursor: move;">[ ION_SOURCE_CONTROL ]</div>
         <label style="font-size:0.55rem;">EXTRACTION_V: <span id="v-val">5.0</span> kV</label>
         <input type="range" id="v-slider" min="1" max="10" step="0.1" value="5">
       
@@ -130,6 +256,7 @@
       
         <div style="margin-top: 10px;"><a href="https://bharatbharat22.wixsite.com/website" target="_blank" style="color:var(--plasma-cyan); text-decoration:none; font-size:0.8rem;">View Full Portfolio</a></div>
     </div>
+
     <div id="ring-cusp-cursor">
         <canvas id="ion-beam-canvas" width="400" height="200"></canvas>
         <canvas id="electron-canvas" width="400" height="200"></canvas>
@@ -142,64 +269,68 @@
         <div class="magnet north" style="top:126px; left:40px;"></div>
         <div class="magnet south" style="top:126px; left:72px;"></div>
     </div>
+
     <div id="diagnostic-hud">
         <div class="diag-label">Beam Profile</div>
         <canvas id="gaussianCanvas" width="180" height="40"></canvas>
         <div class="diag-label" style="margin-top: 10px;">Phase Space</div>
         <canvas id="phaseSpaceCanvas" width="180" height="50"></canvas>
     </div>
+
     <div class="container">
-        <section class="lab-card" data-color="var(--plasma-cyan)">
+        <section class="lab-card">
             <h1 style="font-size: 2.8rem; margin:0;">BHARAT SINGH RAWAT, Ph.D.</h1>
             <h3 style="color: var(--plasma-cyan); font-weight: 200; margin-top:5px;">// ION SOURCE & BEAM DIAGNOSTICS EXPERT</h3>
-            <p style="color:#ccc;">Expert in manipulating charged particle beams with 7+ years of experience in the design of ion sources, transport systems, and digital twin modeling.</p>
+            <p style="color:#ccc;">Expert in manipulating charged particle beams with 7+ years of experience in the design of ion sources, beam extraction/transport systems, and digital twins.</p>
             <a href="https://bharat26031992.github.io/AEgIS_Outreach_Game/" target="_blank" class="btn-game">PROJECT_DT</a>
-           
             <a href="https://bharat26031992.github.io/Project-Hbar/" target="_blank" class="btn-game">PROJECT_HBAR</a>
         </section>
+
         <h2 class="module-title">[ 01: EMPLOYMENT HISTORY ]</h2>
-        <div class="lab-card" data-color="var(--extraction-purple)">
+        <div class="lab-card">
             <span class="sub-role">Research Associate | University of Liverpool / Cockcroft Institute / CERN</span>
             <span class="date-tag">2023 — 2026</span>
             <ul>
                 <li>Led ballistic antiproton transport optimization utilizing 3D CST Penning Trap models.</li>
                 <li>Creating a Digital Twin of the Penning Malmberg trap apparatus, integrating first principles physics with Machine Learning (ML) models to predict trap behavior and optimize particle confinement.</li>
-                <li> Executing critical on shift responsibilities during beam time, including real-time data acquisition and the management of cryogenic systems for superconducting magnets.</li>
+                <li>Executing critical on shift responsibilities during beam time, including real-time data acquisition and the management of cryogenic systems for superconducting magnets.</li>
             </ul>
             <span class="sub-role">Radiation Protection Engineer | Nuvia India Pvt Limited</span>
             <span class="date-tag">2018 — 2018</span>
             <ul>
                 <li>Managed occupational radiation exposure at Kakrapar Atomic Power Station.</li>
                 <li>Developed automated dose tracking systems for proactive safety interventions.</li>
-                 <li>Coordinated with the Health Physics and Reactor Management teams to provide real-time notification of dose status.</li>
+                <li>Coordinated with the Health Physics and Reactor Management teams to provide real-time notification of dose status.</li>
             </ul>
         </div>
+
         <h2 class="module-title">[ 02: RESEARCH & EDUCATION ]</h2>
-        <div class="lab-card" data-color="var(--plasma-cyan)">
+        <div class="lab-card">
             <span class="sub-role">Ph.D. | Homi Bhabha National Institute / Institute for Plasma Research</span>
             <span class="date-tag">2018 — 2024</span>
             <ul>
-                <li>Designed a ring cusp ion source for Ar⁺ beams (1-2 keV, 100 mA). </li>
-                <li>Utilized CST Studio for magnetic cusp optimization andOPERA-3D for ion optics design, achieving a low beam divergence of ~6.5°. Conducted transient thermo-structural analysis in ANSYS to design a grid mounting system that limited thermal deformation to <0.1 mm.</li>
-                <li>Engineered a nine-channel Parallel Wire Array (PWA) and a Faraday Cup array (FCA) for real-time, in-situ monitoring of ion beam profiles. </li>
+                <li>Designed a ring cusp ion source for Ar⁺ beams (1-2 keV, 100 mA).</li>
+                <li>Utilized CST Studio for magnetic cusp optimization and OPERA-3D for ion optics design.</li>
+                <li>Conducted transient thermo-structural analysis in ANSYS to design a grid mounting system.</li>
+                <li>Engineered a nine-channel Parallel Wire Array (PWA) and a Faraday Cup array (FCA).</li>
             </ul>
             <span class="sub-role">M.Tech. Nuclear Engineering | Pandit Deendayal Petroleum University</span>
             <span class="date-tag">2015 — 2017</span>
             <ul>
                 <li>Developed a 10 kW Faraday cup capable of measuring 20-30 mA beam intensities.</li>
-                <li>Designed cooling systems maintaining copper Faraday Cup at 350.6°C for thermal integrity.</li>
+                <li>Designed cooling systems maintaining copper Faraday Cup at 350.6°C.</li>
                 <li>Calculated suppression voltages (-450V to -500V) via SIMION 8.0 and LORENTZ.</li>
             </ul>
             <span class="sub-role">B.E. Mechanical Engineering | Gujarat Technological University</span>
             <span class="date-tag">2009 — 2013</span>
             <ul>
-                <li>Reduced temperature rise per stop by transitioning to Cast Iron brake components.</li>
-                <li>Mitigated thermal judder and overheating in textile beaming processes.</li>
-                <li>Corrected 0.5 mm parallelism errors in pneumatic ejecting systems.</li>
+                <li>Provided provisions for thermal judder and overheating in Long Chain Beamer machine.</li>
+                <li>Mitigated alignment errors in icecream packaging machines.</li>
             </ul>
         </div>
-        <h2 class="module-title">[ 03: PUBLICATIONS & TECHNICAL SKILLS ]</h2>
-        <div class="lab-card" data-color="var(--extraction-purple)">
+
+        <h2 class="module-title">[ 03: PUBLICATIONS ]</h2>
+        <div class="lab-card">
             <div class="pub-box"><b>Instruments (2026):</b> Characterization of the extraction system of supersonic gas curtain-based ionization profile monitor for flash proton therapy.</div>
             <div class="pub-box"><b>IBIC (2025):</b> Design studies of a Retarding Potential Energy Analyser (RPEA) for low energy antimatter experiments.</div>
             <div class="pub-box"><b>Instruments (2025):</b> Faraday cups: principles, designs, and applications across scientific disciplines—a review.</div>
@@ -211,30 +342,31 @@
             <div class="pub-box"><b>AIP Advances (2022):</b> Measurement system for ion beam profiles using fixed parallel wires and Faraday cup array.</div>
             <div class="pub-box"><b>IEEE TPS (2021):</b> Characterization of a Multicusp Ion Source with Two-Grid Extraction System for Studying Extraction and Transport of Ion Beam.</div>
             <div class="pub-box"><b>ICONE25 (2017):</b> Design and simulation of 10kW Faraday cup for ion beam current.</div>
+        </div>
 
-            <h2 class="module-title">[ 04: PRESENTATION & TALKS ]</h2>
-            <div class="pub-box"><b>Invited talk titled "Design tutorial on FC design for low energy antimatter research using CST studio." at CST User day, October 2025, Nottingham, United Kingdom.</div>
-            <div class="pub-box"><b>Contributed talk titled"Digital Twin-Enabled Modeling of Antimatter Beam Control: Insights from AEgIS to EuPRAXIA" at EuPRAXIA-DN Camp II: Science, July 2025, Lisbon, Portugal.</div>
-            <div class="pub-box"><b>Contributed talk titled "Trapping Antiprotons: Modeling Penning-Malmberg Traps for AEgIS at CERN" at SIMULIA Euronorth Regional User Meeting, June, 2025, Manchester, United Kingdom.</div>
-            <div class="pub-box"><b>Contributed talk titled "Design and Simulation of 10 kW Faraday Cup for Ion Beam Current Measurement" 25th International Conference on Nuclear Engineering 2017, Shanghai, China.</div>
+        <h2 class="module-title">[ 04: PRESENTATION & TALKS ]</h2>
+        <div class="lab-card">
+            <div class="pub-box"><b>Invited talk:</b> "Design tutorial on FC design for low energy antimatter research using CST studio" CST User day, 2025, Nottingham, UK.</div>
+            <div class="pub-box"><b>Contributed talk:</b> "Digital Twin-Enabled Modeling of Antimatter Beam Control" EuPRAXIA-DN, 2025, Lisbon, Portugal.</div>
+            <div class="pub-box"><b>Contributed talk:</b> "Trapping Antiprotons: Modeling Penning-Malmberg Traps for AEgIS" SIMULIA RUM, 2025, Manchester, UK.</div>
+            <div class="pub-box"><b>Contributed talk:</b> "Design and Simulation of 10 kW Faraday Cup" ICONE25, 2017, Shanghai, China.</div>
+        </div>
 
-            <p style="margin-top:25px;"><b>Software Stack:</b> CST Studio, OPERA3D, SIMION, COMSOL, RF Track, ANSYS, ASTRA, MAD-X, Geant4, IBISIMU.</p>
-            <p><b>Expertise:</b> Ion Source Design, Beam Transport Optimization, Space Charge Neutralization, and Advanced Beam Diagnostics (Faraday Cups and Wire Arrays).</p>
-            <p><b>Outreach:</b>
-            <ul>
-                <li>Designed and 3D printed a Faraday Cup model for outreach demonstrations, integrated with a Red Pitaya circuit board.</li>
-                <li>Assisted in laboratory tours at Daresbury Laboratory, engaging visitors and explaining ongoing research activities.</li>
-                <li>Developed a browser-based interactive game for teaching the concept of electromagnetic confinement in the context of the AEgIS experiment.</li>
-            </ul>
-
-            <h2 class="module-title">[ 05:HOBBIES ]</h2>
+        <h2 class="module-title">[ 05: HOBBIES ]</h2>
+        <div class="lab-card">
             <div class="hobby-chamber">
                 <div class="hobby-atom" data-info="STRATEGY: Chess player - Level ELO 1725 ,1900 on chess.com">♟ CHESS</div>
                 <div class="hobby-atom" data-info="POLYGLOT: English, Hindi, Gujarati, Spanish (B2), Russian (A1)">🌍 LANGUAGES</div>
                 <div class="hobby-atom" data-info="INSTRUMENTS: Keyboards, Harmonium, Melodica, Keytar and Guitar">🎵 INSTRUMENTS</div>
                 <div class="hobby-atom" data-info="GEOGRAPHY: Travelled over 12 countries and still counting...">✈️ TRAVELING</div>
                 <div id="hobby-readout">// WAITING_FOR_BEAM_PROBE...</div>
-            
+            </div>
+        </div>
+
+        <h2 class="module-title">[ 06: SOFTWARE STACK & EXPERTISE ]</h2>
+        <div class="lab-card" id="tech-expertise-section">
+            <p style="margin-bottom:15px;"><b>Software Stack:</b> CST Studio, OPERA3D, SIMION, COMSOL, RF Track, ANSYS, ASTRA, MAD-X, Geant4, IBISIMU.</p>
+            <p><b>Expertise:</b> Ion Source Design, Beam Transport Optimization, Space Charge Neutralization, and Advanced Beam Diagnostics.</p>
         </div>
     </div>
 
@@ -251,36 +383,108 @@
         const hud = document.getElementById('diagnostic-hud');
         const gCtx = document.getElementById('gaussianCanvas').getContext('2d');
         const pCtx = document.getElementById('phaseSpaceCanvas').getContext('2d');
+        const panel = document.getElementById('control-panel');
+
+        const gridSpacing = 70;
+        const warpRadius = 150;
+        const warpStrength = 55;
+        const gridOpacity = 0.15;
 
         let mX = window.innerWidth/2, mY = window.innerHeight/2, bX = mX, bY = mY;
         let beamEnergy = 5.0, neutCurrent = 0.0, isFiring = false;
-        let bgParticles = [];
-        let beamParticles = [];
-        let electrons = [];
-        let faradayCups = [];
+        let bgParticles = [], pulses = [], beamParticles = [], electrons = [], faradayCups = [];
 
-        // Faraday Cup Array (25 channels) for high resolution
-        for (let i = 0; i < 25; i++) {
-            faradayCups.push({
-                y: 30 + i * 16,
-                current: 0,
-                hitsThisFrame: 0,
-                pulse: 0
-            });
-        }
+        // ─── Placement Logic ───────────────────
+        let isDraggingPanel = false;
+        let panelOffset = { x: 0, y: 0 };
 
-        // ─── Audio ───────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            // Keep it dynamic so media queries win if needed
+            const jukebox = document.getElementById('jukebox-card');
+            if(jukebox && window.innerWidth > 850) {
+                jukebox.style.top = '20px';
+                jukebox.style.right = '20px';
+                jukebox.style.left = 'auto';
+            }
+        });
+
+        // Mouse Dragging
+        panel.addEventListener('mousedown', (e) => {
+            isDraggingPanel = true;
+            panelOffset.x = e.clientX - panel.offsetLeft;
+            panelOffset.y = e.clientY - panel.offsetTop;
+            panel.style.transition = 'none';
+            e.stopPropagation();
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!isDraggingPanel) return;
+            panel.style.left = (e.clientX - panelOffset.x) + 'px';
+            panel.style.top = (e.clientY - panelOffset.y) + 'px';
+        });
+        document.addEventListener('mouseup', () => {
+            if (isDraggingPanel) {
+                isDraggingPanel = false;
+                panel.style.transition = 'transform 0.1s ease-out';
+            }
+        });
+
+        // Touch Dragging for Mobile
+        panel.addEventListener('touchstart', (e) => {
+            isDraggingPanel = true;
+            panelOffset.x = e.touches[0].clientX - panel.offsetLeft;
+            panelOffset.y = e.touches[0].clientY - panel.offsetTop;
+            panel.style.transition = 'none';
+            e.stopPropagation();
+        }, {passive: false});
+        document.addEventListener('touchmove', (e) => {
+            if (!isDraggingPanel) return;
+            panel.style.left = (e.touches[0].clientX - panelOffset.x) + 'px';
+            panel.style.top = (e.touches[0].clientY - panelOffset.y) + 'px';
+            e.preventDefault(); // Prevent scrolling while dragging
+        }, {passive: false});
+        document.addEventListener('touchend', () => {
+            if (isDraggingPanel) {
+                isDraggingPanel = false;
+                panel.style.transition = 'transform 0.1s ease-out';
+            }
+        });
+
+        // ─── Audio Engine & UI Interactions ────────────────────────
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
         let beamHumOsc = null, beamHumGain = null, beamHumLfo = null;
+
+        function playTick(element) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            // Audio Tick
+            const osc = audioCtx.createOscillator();
+            const tickGain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1400, audioCtx.currentTime); 
+            tickGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            tickGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+            osc.connect(tickGain);
+            tickGain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.04);
+
+            // Visual Pulse
+            if (element && element.classList.contains('lab-card')) {
+                element.classList.remove('pulse-active');
+                void element.offsetWidth; // Trigger reflow
+                element.classList.add('pulse-active');
+                setTimeout(() => element.classList.remove('pulse-active'), 400);
+            }
+        }
 
         function startBeamHum() {
             if (beamHumOsc) return;
             beamHumOsc = audioCtx.createOscillator();
             beamHumGain = audioCtx.createGain();
             beamHumLfo = audioCtx.createOscillator();
-            beamHumOsc.type = 'sawtooth';
-            beamHumOsc.frequency.setValueAtTime(92, audioCtx.currentTime);
+            beamHumOsc.type = 'triangle';
+            beamHumOsc.frequency.setValueAtTime(100, audioCtx.currentTime);
             beamHumLfo.type = 'sine';
             beamHumLfo.frequency.setValueAtTime(0.8, audioCtx.currentTime);
             const lfoGain = audioCtx.createGain();
@@ -291,282 +495,190 @@
             beamHumGain.connect(audioCtx.destination);
             beamHumGain.gain.setValueAtTime(0, audioCtx.currentTime);
             beamHumGain.gain.linearRampToValueAtTime(0.18, audioCtx.currentTime + 0.12);
-            beamHumOsc.start();
-            beamHumLfo.start();
+            beamHumOsc.start(); beamHumLfo.start();
         }
 
         function updateBeamHum() {
             if (!beamHumOsc || !beamHumGain) return;
-            const baseFreq = 88 + neutCurrent * 3.2;
-            const gainLevel = 0.14 + neutCurrent * 0.028;
-            beamHumOsc.frequency.setTargetAtTime(baseFreq, audioCtx.currentTime, 0.08);
-            beamHumGain.gain.setTargetAtTime(gainLevel, audioCtx.currentTime, 0.10);
+            beamHumOsc.frequency.setTargetAtTime(88 + neutCurrent * 3.2, audioCtx.currentTime, 0.08);
+            beamHumGain.gain.setTargetAtTime(0.14 + neutCurrent * 0.028, audioCtx.currentTime, 0.10);
         }
 
         function stopBeamHum() {
             if (!beamHumGain) return;
             beamHumGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.25);
-            setTimeout(() => {
-                if (beamHumOsc) {
-                    beamHumOsc.stop();
-                    beamHumLfo.stop();
-                    beamHumOsc = null;
-                    beamHumLfo = null;
-                    beamHumGain = null;
-                }
-            }, 300);
+            setTimeout(() => { if (beamHumOsc) { beamHumOsc.stop(); beamHumLfo.stop(); beamHumOsc = null; beamHumLfo = null; beamHumGain = null; } }, 300);
         }
 
-        // ─── Resize ──────────────────────────────────────────────
-        function resize() {
-            bgCanvas.width = window.innerWidth;
-            bgCanvas.height = window.innerHeight;
-            beamCanvas.width = 400;
-            beamCanvas.height = 200;
-            eCanvas.width = 400;
-            eCanvas.height = 200;
-        }
-        window.onresize = resize; resize();
+        // ─── Particles & Drawing ────────────────────────
+        for (let i = 0; i < 25; i++) faradayCups.push({ y: 30 + i * 16, current: 0, hitsThisFrame: 0, pulse: 0 });
 
-        // ─── Background Particles ────────────────────────────────
         class BackgroundParticle {
             constructor() { this.reset(); this.x = Math.random() * bgCanvas.width; }
             reset() { this.x = -10; this.y = Math.random() * bgCanvas.height; this.v = 1.5 + Math.random() * 3; this.a = 0.1 + Math.random() * 0.3; }
             update() { this.x += this.v * (beamEnergy * 0.4); if (this.x > bgCanvas.width) this.reset(); }
-            draw() { bgCtx.fillStyle = `rgba(0, 255, 255, ${this.a})`; bgCtx.beginPath(); bgCtx.arc(this.x, this.y, 1.2, 0, Math.PI*2); bgCtx.fill(); }
+            draw() { bgCtx.fillStyle = `rgba(0, 255, 255, ${this.a})`; bgCtx.beginPath(); bgCtx.arc(this.x, this.y, 2.5, 0, Math.PI*2); bgCtx.fill(); }
         }
         for(let i=0; i<80; i++) bgParticles.push(new BackgroundParticle());
 
-        // ─── Conical Main Ion Beam Particles ─────────────────────
         class BeamParticle {
             constructor() { this.reset(); }
             reset() {
                 this.x = 92 + Math.random() * 8;
-                this.y = 100;
+                this.y = 100 + (Math.random() - 0.5) * 50;
                 const divAngle = (Math.max(2, 45 - (neutCurrent * 4.3)) * 0.018);
                 const angle = (Math.random() - 0.5) * divAngle;
                 const speed = 6 + beamEnergy * 0.8 + Math.random() * 2.5;
                 this.vx = Math.cos(angle) * speed;
                 this.vy = Math.sin(angle) * speed * 0.4;
-                this.life = 1.0;
-                this.hue = 180 + neutCurrent * 25;
+                this.life = 1.0; this.hue = 180 + neutCurrent * 25;
             }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.012;
-                if (this.life <= 0 || this.x > 400) this.reset();
-            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= 0.012; if (this.life <= 0 || this.x > 400) this.reset(); }
             draw() {
                 const alpha = this.life * 0.85;
                 beamCtx.fillStyle = `hsla(${this.hue}, 100%, 75%, ${alpha})`;
-                beamCtx.shadowBlur = 10;
-                beamCtx.shadowColor = `hsla(${this.hue}, 100%, 60%, 0.9)`;
-                beamCtx.beginPath();
-                beamCtx.arc(this.x, this.y, 1.6, 0, Math.PI*2);
-                beamCtx.fill();
-                beamCtx.shadowBlur = 0;
+                beamCtx.beginPath(); beamCtx.arc(this.x, this.y, 1.6, 0, Math.PI*2); beamCtx.fill();
             }
         }
         for(let i=0; i<220; i++) beamParticles.push(new BeamParticle());
 
-        // ─── Neutralizer Electrons ───────────────────────────────
         class Electron {
             constructor() { this.reset(); }
-            reset() {
-                this.x = 94;
-                this.y = 80 + Math.random() * 40;
-                this.vx = 7 + Math.random() * 10;
-                this.vy = (Math.random() - 0.5) * 5;
-                this.life = 1.0;
-            }
-            update() {
-                this.x += this.vx;
-                this.vy += (100 - this.y) * 0.08;
-                this.y += this.vy + (Math.random()-0.5)*3;
-                this.life -= 0.02;
-                if (this.life <= 0 || this.x > 400) this.reset();
-            }
-            draw() {
-                eCtx.fillStyle = `rgba(255, 241, 118, ${this.life})`;
-                eCtx.shadowBlur = 6; eCtx.shadowColor = "gold";
-                eCtx.beginPath(); eCtx.arc(this.x, this.y, 1.8, 0, Math.PI*2); eCtx.fill();
-                eCtx.shadowBlur = 0;
-            }
+            reset() { this.x = 94; this.y = 80 + Math.random() * 40; this.vx = 7 + Math.random() * 10; this.vy = (Math.random() - 0.5) * 5; this.life = 1.0; }
+            update() { this.x += this.vx; this.vy += (100 - this.y) * 0.08; this.y += this.vy + (Math.random()-0.5)*3; this.life -= 0.02; if (this.life <= 0 || this.x > 400) this.reset(); }
+            draw() { eCtx.fillStyle = `rgba(255, 241, 118, ${this.life})`; eCtx.beginPath(); eCtx.arc(this.x, this.y, 1.8, 0, Math.PI*2); eCtx.fill(); }
         }
         for(let i=0; i<70; i++) electrons.push(new Electron());
 
-        // ─── Diagnostics: Profile + Phase Space ──────────────────
+        function drawMagneticGrid() {
+            bgCtx.strokeStyle = `rgba(0, 255, 255, ${gridOpacity})`; bgCtx.lineWidth = 0.5;
+            for (let x = 0; x <= bgCanvas.width; x += gridSpacing) {
+                bgCtx.beginPath();
+                for (let y = 0; y <= bgCanvas.height; y += 30) {
+                    const dx = mX - x; const dy = mY - y; const dist = Math.sqrt(dx * dx + dy * dy);
+                    const warp = dist < warpRadius ? (1 - dist / warpRadius) * warpStrength : 0;
+                    bgCtx.lineTo(x + (dx / dist || 0) * warp, y + (dy / dist || 0) * warp);
+                }
+                bgCtx.stroke();
+            }
+        }
+
+        function drawAnnihilation() {
+            if (Math.random() < 0.015) pulses.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, r: 0, a: 0.5 });
+            pulses.forEach((p, i) => {
+                p.r += 2.5; p.a -= 0.01; if (p.a <= 0) pulses.splice(i, 1);
+                bgCtx.beginPath(); bgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                bgCtx.strokeStyle = `rgba(188, 19, 254, ${p.a})`; bgCtx.lineWidth = 2; bgCtx.stroke();
+            });
+        }
+
         function drawDiagnostics(div) {
-            gCtx.clearRect(0, 0, 180, 40);
-            gCtx.strokeStyle = '#00ff41'; gCtx.lineWidth = 1.5; gCtx.beginPath();
+            gCtx.clearRect(0, 0, 180, 40); gCtx.strokeStyle = '#00ff41'; gCtx.beginPath();
             const sigma = div / 2.2;
             for (let x = 0; x < 180; x++) {
                 const val = 32 * Math.exp(-Math.pow(x - 90, 2) / (2 * Math.pow(sigma, 2)));
                 gCtx.lineTo(x, 38 - val + (Math.random()*2));
             }
             gCtx.stroke();
-
-            pCtx.clearRect(0, 0, 180, 50);
-            pCtx.strokeStyle = '#00ff41'; pCtx.lineWidth = 1.5; pCtx.beginPath();
-            const safeDiv = Math.max(0.1, Math.min(45, div));
-            const rx = 30;
-            const ry = 5 + (safeDiv / 4);
-            const rotation = safeDiv * 0.01;
-            pCtx.ellipse(90, 25, rx, ry, rotation, 0, Math.PI * 2);
-            pCtx.stroke();
+            pCtx.clearRect(0, 0, 180, 50); pCtx.strokeStyle = '#00ff41'; pCtx.beginPath();
+            pCtx.ellipse(90, 25, 30, 5 + (div/4), div*0.01, 0, Math.PI * 2); pCtx.stroke();
         }
 
-        // ─── Animation ───────────────────────────────────────────
         function animate() {
             bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            drawMagneticGrid(); drawAnnihilation();
             bgParticles.forEach(p => { p.update(); p.draw(); });
-
             bX += (mX - bX) * 0.15; bY += (mY - bY) * 0.15;
             cursor.style.left = bX + 'px'; cursor.style.top = bY + 'px';
-
-            beamCtx.clearRect(0, 0, 400, 200);
-            eCtx.clearRect(0, 0, eCanvas.width, eCanvas.height);
-
+            beamCtx.clearRect(0, 0, 400, 200); eCtx.clearRect(0, 0, eCanvas.width, eCanvas.height);
             const divergence = Math.max(2, 45 - (neutCurrent * 4.3));
-
             faradayCups.forEach(cup => { cup.hitsThisFrame = 0; });
-
             if (isFiring) {
                 const emitRate = 3 + Math.floor(beamEnergy * 0.8) + Math.floor(neutCurrent * 1.2);
-                for (let i = 0; i < emitRate; i++) {
-                    beamParticles[i % beamParticles.length].reset();
-                }
+                for (let i = 0; i < emitRate; i++) beamParticles[i % beamParticles.length].reset();
                 beamParticles.forEach(p => {
-                    p.update();
-                    p.draw();
-
-                    // Faraday Cup Hit Detection
+                    p.update(); p.draw();
                     if (p.x >= 385 && p.life > 0.1) {
                         const cupIndex = Math.floor((p.y - 20) / 16);
-                        if (cupIndex >= 0 && cupIndex < 25) {
-                            faradayCups[cupIndex].hitsThisFrame++;
-                            faradayCups[cupIndex].pulse = 1.0; // trigger glow
-                        }
+                        if (cupIndex >= 0 && cupIndex < 25) { faradayCups[cupIndex].hitsThisFrame++; faradayCups[cupIndex].pulse = 1.0; }
                     }
                 });
-
                 if (neutCurrent > 0) {
                     const activeCount = Math.floor(neutCurrent * 7);
-                    for(let i=0; i<activeCount; i++) {
-                        electrons[i].update();
-                        electrons[i].draw();
-                    }
+                    for(let i=0; i<activeCount; i++) { electrons[i].update(); electrons[i].draw(); }
                 }
-
-                drawDiagnostics(divergence);
-                updateBeamHum();
-
-                // Statistical Divergence Logic (RMS Method)
-                let sumI = 0, sumIY = 0, sumIY2 = 0;
-                beamCtx.font = '9px monospace';
-
+                drawDiagnostics(divergence); updateBeamHum();
                 faradayCups.forEach((cup, i) => {
                     cup.current = cup.current * 0.92 + cup.hitsThisFrame * 0.12;
-                    
-                    const I = cup.current;
-                    sumI += I;
-                    sumIY += I * cup.y;
-                    sumIY2 += I * (cup.y * cup.y);
-
-                    // Thermal color shift visualization
-                    let r = Math.min(255, I * 80);
-                    let g = Math.min(255, 255 - I * 40);
-                    beamCtx.fillStyle = `rgb(${r},${g},0)`;
-                    beamCtx.fillRect(385, cup.y, 12, 14);
-
-                    // Pulse glow
-                    if (cup.pulse > 0.05) {
-                        beamCtx.shadowBlur = 12;
-                        beamCtx.shadowColor = `rgba(0,255,65,${cup.pulse})`;
-                        beamCtx.strokeStyle = `rgba(0,255,65,${cup.pulse})`;
-                        beamCtx.lineWidth = 2;
-                        beamCtx.strokeRect(383, cup.y-2, 16, 18);
-                        cup.pulse *= 0.82; // fade
-                    }
-
-                    // Current label (every 3rd cup for clarity if high resolution)
-                    if(i % 3 === 0) {
-                      beamCtx.fillStyle = I > 2 ? '#000' : '#00ff41';
-                      beamCtx.fillText(I.toFixed(1), 400, cup.y + 10);
-                    }
+                    let r = Math.min(255, cup.current * 80); let g = Math.min(255, 255 - cup.current * 40);
+                    beamCtx.fillStyle = `rgb(${r},${g},0)`; beamCtx.fillRect(385, cup.y, 12, 14);
+                    if (cup.pulse > 0.05) { beamCtx.strokeStyle = `rgba(0,255,65,${cup.pulse})`; beamCtx.strokeRect(383, cup.y-2, 16, 18); cup.pulse *= 0.82; }
+                    if(i % 3 === 0) { beamCtx.fillStyle = cup.current > 2 ? '#000' : '#00ff41'; beamCtx.fillText(cup.current.toFixed(1), 400, cup.y + 10); }
                 });
-
-                // Final Statistical Estimate
-                let divDisplay = 0;
-                if (sumI > 0.05) {
-                    const meanY = sumIY / sumI;
-                    const variance = (sumIY2 / sumI) - (meanY * meanY);
-                    const sigma = Math.sqrt(Math.max(0, variance));
-                    // Geometry conversion: sigma to degrees based on drift distance (300px)
-                    divDisplay = Math.atan(sigma / 300) * (180 / Math.PI) * 4.5;
-                }
-
-                // Total & divergence display
-                beamCtx.fillStyle = 'rgba(0,0,0,0.6)';
-                beamCtx.fillStyle = '#88ff88';
-                beamCtx.fillText(`RMS Div: ${divDisplay.toFixed(2)}°`, 280, 190); 
-
-                beamCtx.fillStyle = '#ffffff';
-                beamCtx.fillText(`Total: ${sumI.toFixed(1)} mA`, 280, 200);
             }
-
             requestAnimationFrame(animate);
         }
 
-        // ─── Events ──────────────────────────────────────────────
+        // ─── Interactions & Event Listeners ───────────────────
+        window.addEventListener('pointermove', (e) => {
+            mX = e.clientX; mY = e.clientY;
+            if (!isDraggingPanel) {
+                const xVal = (mX - window.innerWidth / 2) / (window.innerWidth / 2);
+                const yVal = (mY - window.innerHeight / 2) / (window.innerHeight / 2);
+                const targets = document.querySelectorAll('.lab-card, #control-panel');
+                targets.forEach(t => { t.style.transform = `perspective(1000px) rotateX(${-yVal * 5}deg) rotateY(${xVal * 5}deg)`; });
+            }
+            const el = document.elementFromPoint(mX, mY);
+            cursor.classList.toggle('hidden', !!el?.closest('a, button, input, #control-panel, .btn-game, #jukebox-card'));
+        });
+
+        document.querySelectorAll('.lab-card, .module-title').forEach(item => {
+            item.addEventListener('mouseenter', () => playTick(item));
+        });
+
+        window.addEventListener('pointerdown', (e) => {
+            if(!e.target.closest('#control-panel, .lab-card, .btn-game, #jukebox-card, #video-intro-container')) {
+                isFiring = true; hud.classList.add('active'); if (audioCtx.state === 'suspended') audioCtx.resume(); startBeamHum();
+            }
+        });
+
+        window.addEventListener('pointerup', () => { isFiring = false; hud.classList.remove('active'); stopBeamHum(); });
+
         document.getElementById('v-slider').oninput = (e) => {
-            beamEnergy = parseFloat(e.target.value);
-            document.getElementById('v-val').innerText = beamEnergy.toFixed(1);
+            beamEnergy = parseFloat(e.target.value); document.getElementById('v-val').innerText = beamEnergy.toFixed(1);
         };
-      
         document.getElementById('i-slider').oninput = (e) => {
-            neutCurrent = parseFloat(e.target.value);
-            document.getElementById('i-val').innerText = neutCurrent.toFixed(1);
+            neutCurrent = parseFloat(e.target.value); document.getElementById('i-val').innerText = neutCurrent.toFixed(1);
             filament.style.background = neutCurrent > 0 ? `rgb(255, ${180 + neutCurrent*7}, 50)` : "#333";
             filament.style.boxShadow = neutCurrent > 0 ? `0 0 ${neutCurrent * 8}px var(--warning-orange)` : "none";
         };
 
-        // HOBBY LOGIC: Ionization probe
+        // Added touch support to the hobby atoms
         document.querySelectorAll('.hobby-atom').forEach(atom => {
-            atom.addEventListener('mouseenter', () => {
-                atom.classList.add('ionized');
-                document.getElementById('hobby-readout').innerText = `>  ${atom.getAttribute('data-info')}`;
-            });
-            atom.addEventListener('mouseleave', () => {
-                atom.classList.remove('ionized');
-                document.getElementById('hobby-readout').innerText = "// WAITING_FOR_BEAM_PROBE...";
-            });
+            const handleHover = () => {
+                document.querySelectorAll('.hobby-atom').forEach(a => a.classList.remove('ionized'));
+                atom.classList.add('ionized'); playTick();
+                document.getElementById('hobby-readout').innerText = `>  ${atom.getAttribute('data-info')}`; 
+            };
+            atom.addEventListener('mouseenter', handleHover);
+            atom.addEventListener('touchstart', handleHover, {passive: true});
+            atom.addEventListener('mouseleave', () => { atom.classList.remove('ionized'); document.getElementById('hobby-readout').innerText = "// WAITING_FOR_BEAM_PROBE..."; });
         });
 
-        window.addEventListener('pointermove', (e) => {
-            mX = e.clientX; mY = e.clientY;
-            const el = document.elementFromPoint(mX, mY);
-            cursor.classList.toggle('hidden', !!el?.closest('a, button, input, #control-panel, .btn-game'));
+        function resize() { bgCanvas.width = window.innerWidth; bgCanvas.height = window.innerHeight; }
+        window.onresize = resize; resize(); animate();
+
+        const introContainer = document.getElementById('video-intro-container');
+        const introVideo = document.getElementById('intro-video');
+        const initBtn = document.getElementById('initialize-button');
+
+        initBtn.addEventListener('click', () => {
+            playTick(); introContainer.classList.add('preloader-hidden');
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            setTimeout(() => { introVideo.pause(); }, 1200);
         });
 
-        window.addEventListener('pointerdown', (e) => {
-            if(!e.target.closest('#control-panel, .lab-card, .btn-game')) {
-                isFiring = true;
-                hud.classList.add('active');
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                startBeamHum();
-                updateBeamHum();
-            }
-        });
-
-        window.addEventListener('pointerup', () => {
-            isFiring = false;
-            hud.classList.remove('active');
-            stopBeamHum();
-        });
-
-        animate();
+        window.addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 's') introContainer.classList.add('preloader-hidden'); });
     </script>
 </body>
 </html>
